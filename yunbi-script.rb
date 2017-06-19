@@ -6,8 +6,23 @@ require 'pry-nav'
 
 class MyClient
   attr_accessor :client_public
+  attr_accessor :client
+  attr_accessor :access_key
+  attr_accessor :access_token
+
   def initialize
     @client_public = PeatioAPI::Client.new endpoint: 'https://yunbi.com'
+    @access_key = ENV['access']
+    @access_token = ENV['token']
+
+    options = {
+      access_key: @access_key, 
+      secret_key: @access_token, 
+      endpoint: 'https://yunbi.com', 
+      timeout: 60
+    }
+
+    @client = PeatioAPI::Client.new options
   end
 
   def fetch_closing_prices(market, period = 15, limit = 30)
@@ -32,33 +47,43 @@ class MyClient
     return result
   end
 
+  def buy(market, total, price) 
+    volume = total / price
+    @client.post '/api/v2/orders', market: market, side: 'buy', volume: volume, price: price 
+  end
+
+  def sell(market, volume, price)
+    @client.post '/api/v2/orders', market: market, side: 'sell', volume: volume, price: price 
+  end
+
+  def get_accounts
+    data = $client.get '/api/v2/members/me'
+    data.data['accounts']
+  end
+
   def start
     # 策略
-    balance = 10000.0
-    volume  = 0
     market  = "qtumcny"
+    coin = "qtum"
     period  = 60 
-    p "current balance: #{balance}, volume: #{volume}"
     while true
+      accounts = get_accounts
+      cny_balance = accounts.detect {|item| item['currency'] == 'cny' }['balance'].to_f
+      coin_balance = accounts.detect {|item| item['currency'] == coin }['balance'].to_f
       closing_price = fetch_closing_prices(market, period)
       ma_7  = moving_average(closing_price, 7)
       ma_30 = moving_average(closing_price, 30)
       buy_price, sell_price = fetch_ticker_price(market)
-      p "check at #{Time.now} with price: #{sell_price}"
 
       if ma_7.first <= ma_30.first
-        if volume > 0
+        if coin_balance > 0
           p "sell at time #{Time.now} with price: #{buy_price}"
-          balance = volume * buy_price
-          volume = 0
-          p "current balance: #{balance}, volume: #{volume}"
+          sell(market, coin_balance * 0.999, buy_price)
         end
       else
-        if balance > 0
+        if cny_balance > 0
           p "buy at time #{Time.now} with price: #{sell_price}"
-          volume = balance/sell_price
-          balance = 0
-          p "current balance: #{balance}, volume: #{volume}"
+          buy(market, cny_balance * 0.999, sell_price)
         end
       end
 
