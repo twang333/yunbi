@@ -56,20 +56,32 @@ class MyClient
     @client.post '/api/v2/orders', market: market, side: 'sell', volume: volume, price: price 
   end
 
+  def cancel_all_orders
+    @client.post '/api/v2/orders/clear'
+  end
+
   def get_accounts
-    data = $client.get '/api/v2/members/me'
-    data.data['accounts']
+    data = @client.get '/api/v2/members/me'
+    data['accounts']
   end
 
   def start
     # 策略
-    market  = "qtumcny"
-    coin = "qtum"
+    market  = "sccny"
+    coin = "sc"
     period  = 60 
     while true
       accounts = get_accounts
       cny_balance = accounts.detect {|item| item['currency'] == 'cny' }['balance'].to_f
       coin_balance = accounts.detect {|item| item['currency'] == coin }['balance'].to_f
+      p "cny_balance: #{cny_balance}; coin_balance: #{coin_balance}"
+
+      if cny_balance == 0 && coin_balance == 0
+        p "cancel orders"
+        cancel_all_orders
+        sleep(5)
+      end
+
       closing_price = fetch_closing_prices(market, period)
       ma_7  = moving_average(closing_price, 7)
       ma_30 = moving_average(closing_price, 30)
@@ -78,16 +90,16 @@ class MyClient
       if ma_7.first <= ma_30.first
         if coin_balance > 0
           p "sell at time #{Time.now} with price: #{buy_price}"
-          sell(market, coin_balance * 0.999, buy_price)
+          sell(market, coin_balance, buy_price)
         end
       else
-        if cny_balance > 0
+        if cny_balance > 1
           p "buy at time #{Time.now} with price: #{sell_price}"
-          buy(market, cny_balance * 0.999, sell_price)
+          buy(market, cny_balance, sell_price)
         end
       end
 
-      sleep(60.seconds)
+      sleep((5*60).seconds)
     end
   end
 
