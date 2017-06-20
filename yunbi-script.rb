@@ -1,23 +1,33 @@
 require 'active_support'
 require 'active_support/core_ext'
 require 'peatio_client'
-require 'pry'
-require 'pry-nav'
+require 'yaml'
+
+require 'optparse'
+
+options = {:env => 'test'}
+OptionParser.new do |opts|
+  opts.banner = "Usage: [options]"
+
+  opts.on("-e", "--require env", "env: can be test or prd") do |env|
+    options[:env] = env
+  end
+end.parse!
 
 class MyClient
   attr_accessor :client_public
   attr_accessor :client
-  attr_accessor :access_key
-  attr_accessor :access_token
+  attr_accessor :conf
 
-  def initialize
+  def initialize(options)
     @client_public = PeatioAPI::Client.new endpoint: 'https://yunbi.com'
-    @access_key = ENV['access']
-    @access_token = ENV['token']
+    @conf = YAML.load_file("setting.yml")
+    access_key = @conf[options[:env]]['access']
+    access_token = @conf[options[:env]]['token']
 
     options = {
-      access_key: @access_key, 
-      secret_key: @access_token, 
+      access_key: access_key,
+      secret_key: access_token,
       endpoint: 'https://yunbi.com', 
       timeout: 60
     }
@@ -67,9 +77,9 @@ class MyClient
 
   def start
     # 策略
-    market  = "sccny"
-    coin = "sc"
-    period  = 60 
+    market = @conf['market']
+    coin   = @conf['coin']
+    period = @conf['period']
     while true
       accounts = get_accounts
       cny_balance = accounts.detect {|item| item['currency'] == 'cny' }['balance'].to_f
@@ -105,6 +115,6 @@ class MyClient
 
 end
 
-c = MyClient.new
+c = MyClient.new(options)
 c.start
 
