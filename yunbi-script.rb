@@ -4,6 +4,7 @@ require 'peatio_client'
 require 'yaml'
 
 require 'optparse'
+require 'logger'
 
 options = {:env => 'test'}
 OptionParser.new do |opts|
@@ -18,12 +19,14 @@ class MyClient
   attr_accessor :client_public
   attr_accessor :client
   attr_accessor :conf
+  attr_accessor :log
 
   def initialize(options)
     @client_public = PeatioAPI::Client.new endpoint: 'https://yunbi.com'
     @conf = YAML.load_file("setting.yml")
     access_key = @conf[options[:env]]['access']
     access_token = @conf[options[:env]]['token']
+    @log = Logger.new('logs/yunbi.log', 'daily')
 
     options = {
       access_key: access_key,
@@ -80,36 +83,33 @@ class MyClient
     market = @conf['market']
     coin   = @conf['coin']
     period = @conf['period']
-    while true
-      accounts = get_accounts
-      cny_balance = accounts.detect {|item| item['currency'] == 'cny' }['balance'].to_f
-      coin_balance = accounts.detect {|item| item['currency'] == coin }['balance'].to_f
-      p "cny_balance: #{cny_balance}; coin_balance: #{coin_balance}"
 
-      if cny_balance == 0 && coin_balance == 0
-        p "cancel orders"
-        cancel_all_orders
-        sleep(5)
+    accounts = get_accounts
+    cny_balance = accounts.detect {|item| item['currency'] == 'cny' }['balance'].to_f
+    coin_balance = accounts.detect {|item| item['currency'] == coin }['balance'].to_f
+    @log.info "cny_balance: #{cny_balance}; coin_balance: #{coin_balance}"
+
+    if cny_balance == 0 && coin_balance == 0
+      @log.infop "cancel all orders"
+      cancel_all_orders
+      sleep(5)
+    end
+
+    closing_price = fetch_closing_prices(market, period)
+    ma_7  = moving_average(closing_price, 7)
+    ma_30 = moving_average(closing_price, 30)
+    buy_price, sell_price = fetch_ticker_price(market)
+
+    if ma_7.first <= ma_30.first
+      if coin_balance > 0
+        @log.info "sell with price: #{buy_price}"
+        sell(market, coin_balance, buy_price)
       end
-
-      closing_price = fetch_closing_prices(market, period)
-      ma_7  = moving_average(closing_price, 7)
-      ma_30 = moving_average(closing_price, 30)
-      buy_price, sell_price = fetch_ticker_price(market)
-
-      if ma_7.first <= ma_30.first
-        if coin_balance > 0
-          p "sell at time #{Time.now} with price: #{buy_price}"
-          sell(market, coin_balance, buy_price)
-        end
-      else
-        if cny_balance > 1
-          p "buy at time #{Time.now} with price: #{sell_price}"
-          buy(market, cny_balance, sell_price)
-        end
+    else
+      if cny_balance > 1
+        @log.info "buy with price: #{sell_price}"
+        buy(market, cny_balance, sell_price)
       end
-
-      sleep((5*60).seconds)
     end
   end
 

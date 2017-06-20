@@ -1,2 +1,2 @@
 #!/bin/bash
-rsync -avz --progress --exclude=.git . aliyun:~/yunbi
+rsync -avz --progress --exclude=logs --exclude=.git . aliyun:~/yunbi
