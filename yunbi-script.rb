@@ -87,7 +87,15 @@ class MyClient
 
   def get_accounts
     data = @client.get '/api/v2/members/me'
-    data['accounts']
+    accounts_hash = {}
+    data['accounts'].inject(accounts_hash) do |result, account|
+      result[account["currency"]] = {
+        "balance" => account["balance"].to_f,
+        "locked"  => account["locked"].to_f
+      }
+      result
+    end
+    accounts_hash
   end
 
   def strategy(market, period, coin_balance, cny_balance, strategy = 'moving_average')
@@ -96,40 +104,72 @@ class MyClient
     ma_30 = self.send(:"#{strategy}", closing_price, 30)
     buy_price, sell_price = fetch_ticker_price(market)
 
-    if coin_balance > 0.001
+    if coin_balance > 0
       if ma_7[-1] < ma_30[-1]
-        @log.info "sell with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
+        @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
         sell(market, coin_balance, buy_price)
       end
     end
 
-    if cny_balance > 1
+    if cny_balance > 0
       if ma_7[-1] > ma_30[-1] && ma_7[-2] < ma_30[-2]
-        @log.info "buy with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
+        @log.info "buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
         buy(market, cny_balance, sell_price)
       end
     end
   end
 
   def start
-    market         = @conf['market']
-    coin           = @conf['coin']
-    period         = @conf['period']
-    trade_strategy = @conf['strategy']
+    markets = @conf['markets']
+    coins = markets.map{|m| m['coin']}
 
     accounts = get_accounts
-    cny_balance = accounts.detect {|item| item['currency'] == 'cny' }['balance'].to_f
-    coin_balance = accounts.detect {|item| item['currency'] == coin }['balance'].to_f
-    @log.info "cny_balance: #{cny_balance}; coin_balance: #{coin_balance}"
+    coin_locked = coins.sum {|l| accounts[l]['locked']}
 
-    if cny_balance == 0 && coin_balance == 0
-      @log.infop "cancel all orders"
+    if accounts['cny']['locked'] > 0 || coin_locked > 0
+      @log.info "cancel all orders due to locked"
       cancel_all_orders
+
       sleep(5)
+
+      # reload accounts
+      accounts = get_accounts
     end
 
-    # strategy(market, period, coin_balance, cny_balance, 'moving_average')
-    strategy(market, period, coin_balance, cny_balance, trade_strategy)
+    # handle deviation
+    markets.each do |market|
+      deviation = market['deviation']
+      if accounts[market['coin']]['balance'] < deviation
+        accounts[market['coin']]['balance'] = 0
+      end
+    end
+
+    # calculate percentage
+    total_percentage = markets.sum do |market| 
+      if accounts[market['coin']]['balance'] == 0
+        market['percentage']
+      else
+        0
+      end
+    end
+
+    markets.each do |opt|
+      market         = opt['market']
+      coin           = opt['coin']
+      period         = opt['period']
+      trade_strategy = opt['strategy']
+      percentage     = opt['percentage'].to_f / total_percentage
+      budget         = 0
+      coin_balance   = accounts[coin]['balance']
+
+      if coin_balance == 0
+        budget = accounts['cny']['balance'].to_f * percentage
+      end
+
+      @log.info "strategy #{market}: , coin: #{coin_balance}, budget: #{budget} "
+      # strategy(market, period, coin_balance, cny_balance, 'moving_average')
+      strategy(market, period, coin_balance, budget, trade_strategy)
+    end
   end
 
 end
