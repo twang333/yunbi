@@ -31,7 +31,7 @@ class MyClient
     options = {
       access_key: access_key,
       secret_key: access_token,
-      endpoint: 'https://yunbi.com', 
+      endpoint: 'https://yunbi.com',
       timeout: 60
     }
 
@@ -40,7 +40,7 @@ class MyClient
 
   def fetch_closing_prices(market, period = 15, limit = 30)
     raw_data = @client_public.get_public '/api/v2/k', market: market, period: period, limit: limit
-    raw_data.map {|item| item[4]}.reverse
+    raw_data.map {|item| item[4]}
   end
 
   def fetch_ticker_price(market)
@@ -54,19 +54,31 @@ class MyClient
     return [] if l < k
     first = prices[0...k].sum.to_f/k
     result = [first]
-    (l - k).times do |i| 
+    (l - k).times do |i|
       result << result.last - prices[i].to_f/k + prices[k+i].to_f/k
     end
     return result
   end
 
-  def buy(market, total, price) 
+  def exponential_moving_average(prices, k)
+    l = prices.size
+    return [] if l < k
+    first = prices[0...k].sum.to_f/k
+    result = [first]
+    param = (k-1).to_f / (k+1)
+    (l-k).times do |i|
+      result << result.last * param + prices[k+i] * (1 - param) 
+    end
+    return result
+  end
+
+  def buy(market, total, price)
     volume = total / price
-    @client.post '/api/v2/orders', market: market, side: 'buy', volume: volume, price: price 
+    @client.post '/api/v2/orders', market: market, side: 'buy', volume: volume, price: price
   end
 
   def sell(market, volume, price)
-    @client.post '/api/v2/orders', market: market, side: 'sell', volume: volume, price: price 
+    @client.post '/api/v2/orders', market: market, side: 'sell', volume: volume, price: price
   end
 
   def cancel_all_orders
@@ -78,8 +90,28 @@ class MyClient
     data['accounts']
   end
 
+  def strategy(market, period, coin_balance, cny_balance, strategy = 'moving_average')
+    closing_price = fetch_closing_prices(market, period)
+    ma_7  = self.send(:"#{strategy}", closing_price, 7)
+    ma_30 = self.send(:"#{strategy}", closing_price, 30)
+    buy_price, sell_price = fetch_ticker_price(market)
+
+    if coin_balance > 0.001
+      if ma_7[-1] < ma_30[-1]
+        @log.info "sell with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
+        sell(market, coin_balance, buy_price)
+      end
+    end
+
+    if cny_balance > 1
+      if ma_7[-1] > ma_30[-1] && ma_7[-2] < ma_30[-2]
+        @log.info "buy with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
+        buy(market, cny_balance, sell_price)
+      end
+    end
+  end
+
   def start
-    # 策略
     market = @conf['market']
     coin   = @conf['coin']
     period = @conf['period']
@@ -95,26 +127,11 @@ class MyClient
       sleep(5)
     end
 
-    closing_price = fetch_closing_prices(market, period)
-    ma_7  = moving_average(closing_price, 7)
-    ma_30 = moving_average(closing_price, 30)
-    buy_price, sell_price = fetch_ticker_price(market)
-
-    if ma_7.first <= ma_30.first
-      if coin_balance > 0
-        @log.info "sell with price: #{buy_price}"
-        sell(market, coin_balance, buy_price)
-      end
-    else
-      if cny_balance > 1
-        @log.info "buy with price: #{sell_price}"
-        buy(market, cny_balance, sell_price)
-      end
-    end
+    # strategy(market, period, coin_balance, cny_balance, 'moving_average')
+    strategy(market, period, coin_balance, cny_balance, 'exponential_moving_average')
   end
 
 end
 
 c = MyClient.new(options)
 c.start
-
