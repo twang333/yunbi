@@ -112,9 +112,10 @@ class MyClient
   end
 
   def start
-    market = @conf['market']
-    coin   = @conf['coin']
-    period = @conf['period']
+    market         = @conf['market']
+    coin           = @conf['coin']
+    period         = @conf['period']
+    trade_strategy = @conf['strategy']
 
     accounts = get_accounts
     cny_balance = accounts.detect {|item| item['currency'] == 'cny' }['balance'].to_f
@@ -128,7 +129,7 @@ class MyClient
     end
 
     # strategy(market, period, coin_balance, cny_balance, 'moving_average')
-    strategy(market, period, coin_balance, cny_balance, 'exponential_moving_average')
+    strategy(market, period, coin_balance, cny_balance, trade_strategy)
   end
 
 end
