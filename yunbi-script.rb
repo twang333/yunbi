@@ -99,7 +99,7 @@ class MyClient
   end
 
   def strategy(market, period, coin_balance, cny_balance, strategy = 'moving_average')
-    closing_price = fetch_closing_prices(market, period)
+    closing_price = fetch_closing_prices(market, period, 60)
     ma_7  = self.send(:"#{strategy}", closing_price, 7)
     ma_30 = self.send(:"#{strategy}", closing_price, 30)
     buy_price, sell_price = fetch_ticker_price(market)
@@ -112,6 +112,8 @@ class MyClient
     end
 
     if cny_balance > 0
+      @log.info "#{ma_7[-2]}, #{ma_7[-1]}"
+      @log.info "#{ma_30[-2]}, #{ma_30[-1]}"
       if ma_7[-1] > ma_30[-1] && ma_7[-2] < ma_30[-2]
         @log.info "buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
         buy(market, cny_balance, sell_price)
@@ -168,7 +170,7 @@ class MyClient
 
       @log.info "strategy #{market}: , coin: #{coin_balance}, budget: #{budget} "
       # strategy(market, period, coin_balance, cny_balance, 'moving_average')
-      strategy(market, period, coin_balance, budget, trade_strategy)
+      strategy(market, period, coin_balance, budget.round(3), trade_strategy)
     end
   end
 
