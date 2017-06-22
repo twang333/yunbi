@@ -112,8 +112,8 @@ class MyClient
     end
 
     if cny_balance > 0
-      @log.info "#{ma_7[-2]}, #{ma_7[-1]}"
-      @log.info "#{ma_30[-2]}, #{ma_30[-1]}"
+      @log.info "ma7: #{ma_7[-2]}, #{ma_7[-1]}"
+      @log.info "ma30: #{ma_30[-2]}, #{ma_30[-1]}"
       if ma_7[-1] > ma_30[-1] && ma_7[-2] < ma_30[-2]
         @log.info "buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
         buy(market, cny_balance, sell_price)
