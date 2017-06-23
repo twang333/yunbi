@@ -20,12 +20,14 @@ class MyClient
   attr_accessor :client
   attr_accessor :conf
   attr_accessor :log
+  attr_accessor :markets
 
   def initialize(options)
     @client_public = PeatioAPI::Client.new endpoint: 'https://yunbi.com'
     @conf = YAML.load_file("setting.yml")
     access_key = @conf[options[:env]]['access']
     access_token = @conf[options[:env]]['token']
+    @markets = @conf[options[:env]]['markets']
     @log = Logger.new('logs/yunbi.log', 'daily')
 
     options = {
@@ -122,8 +124,7 @@ class MyClient
   end
 
   def start
-    markets = @conf['markets']
-    coins = markets.map{|m| m['coin']}
+    coins = @markets.map{|m| m['coin']}
 
     accounts = get_accounts
     coin_locked = coins.sum {|l| accounts[l]['locked']}
@@ -139,7 +140,7 @@ class MyClient
     end
 
     # handle deviation
-    markets.each do |market|
+    @markets.each do |market|
       deviation = market['deviation']
       if accounts[market['coin']]['balance'] < deviation
         accounts[market['coin']]['balance'] = 0
@@ -147,7 +148,7 @@ class MyClient
     end
 
     # calculate percentage
-    total_percentage = markets.sum do |market| 
+    total_percentage = @markets.sum do |market| 
       if accounts[market['coin']]['balance'] == 0
         market['percentage']
       else
@@ -155,7 +156,7 @@ class MyClient
       end
     end
 
-    markets.each do |opt|
+    @markets.each do |opt|
       market         = opt['market']
       coin           = opt['coin']
       period         = opt['period']
@@ -169,7 +170,7 @@ class MyClient
       end
 
       @log.info "strategy #{market}: , coin: #{coin_balance}, budget: #{budget} "
-      # strategy(market, period, coin_balance, cny_balance, 'moving_average')
+      
       strategy(market, period, coin_balance, budget.round(3), trade_strategy)
     end
   end
