@@ -65,11 +65,11 @@ class MyClient
   def exponential_moving_average(prices, k)
     l = prices.size
     return [] if l < k
-    first = prices[0...k].sum.to_f/k
+    first = (prices[0...k].sum.to_f/k).round(2)
     result = [first]
     param = (k-1).to_f / (k+1)
     (l-k).times do |i|
-      result << result.last * param + prices[k+i] * (1 - param) 
+      result << (result.last * param + prices[k+i] * (1 - param)).round(2)
     end
     return result
   end
@@ -167,12 +167,12 @@ class MyClient
       coin_balance   = accounts[coin]['balance']
 
       if coin_balance == 0
-        budget = accounts['cny']['balance'].to_f * percentage
+        budget = (accounts['cny']['balance'].to_f * percentage).round(3)
       end
 
       @log.info "strategy #{market}: coin: #{coin_balance}, budget: #{budget}, delay_sell: #{delay_sell} "
 
-      strategy(market, period, coin_balance, budget.round(3), delay_sell, trade_strategy)
+      strategy(market, period, coin_balance, budget, delay_sell, trade_strategy)
     end
   end
 
