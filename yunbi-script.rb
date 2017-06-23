@@ -100,14 +100,14 @@ class MyClient
     accounts_hash
   end
 
-  def strategy(market, period, coin_balance, cny_balance, strategy = 'moving_average')
+  def strategy(market, period, coin_balance, cny_balance, delay_sell, strategy = 'moving_average')
     closing_price = fetch_closing_prices(market, period, 60)
     ma_7  = self.send(:"#{strategy}", closing_price, 7)
     ma_30 = self.send(:"#{strategy}", closing_price, 30)
     buy_price, sell_price = fetch_ticker_price(market)
 
     if coin_balance > 0
-      if ma_7[-1] < ma_30[-1]
+      if (ma_7[-1] + delay_sell) < ma_30[-1]
         @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
         sell(market, coin_balance, buy_price)
       end
@@ -162,6 +162,7 @@ class MyClient
       period         = opt['period']
       trade_strategy = opt['strategy']
       percentage     = opt['percentage'].to_f / total_percentage
+      delay_sell     = opt['delay_sell']
       budget         = 0
       coin_balance   = accounts[coin]['balance']
 
@@ -169,9 +170,9 @@ class MyClient
         budget = accounts['cny']['balance'].to_f * percentage
       end
 
-      @log.info "strategy #{market}: , coin: #{coin_balance}, budget: #{budget} "
-      
-      strategy(market, period, coin_balance, budget.round(3), trade_strategy)
+      @log.info "strategy #{market}: coin: #{coin_balance}, budget: #{budget}, delay_sell: #{delay_sell} "
+
+      strategy(market, period, coin_balance, budget.round(3), delay_sell, trade_strategy)
     end
   end
 
