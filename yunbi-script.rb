@@ -65,11 +65,11 @@ class MyClient
   def exponential_moving_average(prices, k)
     l = prices.size
     return [] if l < k
-    first = (prices[0...k].sum.to_f/k).round(2)
+    first = (prices[0...k].sum.to_f/k).round(4)
     result = [first]
     param = (k-1).to_f / (k+1)
     (l-k).times do |i|
-      result << (result.last * param + prices[k+i] * (1 - param)).round(2)
+      result << (result.last * param + prices[k+i] * (1 - param)).round(4)
     end
     return result
   end
