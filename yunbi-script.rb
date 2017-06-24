@@ -105,6 +105,8 @@ class MyClient
     ma_7  = self.send(:"#{strategy}", closing_price, 7)
     ma_30 = self.send(:"#{strategy}", closing_price, 30)
     buy_price, sell_price = fetch_ticker_price(market)
+    buy_price  += delay_sell
+    sell_price -= delay_sell
 
     if coin_balance > 0
       if (ma_7[-1] + delay_sell) < ma_30[-1]
