@@ -20,6 +20,8 @@ class MyClient
   attr_accessor :client
   attr_accessor :conf
   attr_accessor :log
+  attr_accessor :sell_deviation
+  attr_accessor :buy_deviation
   attr_accessor :markets
 
   def initialize(options)
@@ -27,6 +29,8 @@ class MyClient
     @conf = YAML.load_file("setting.yml")
     access_key = @conf[options[:env]]['access']
     access_token = @conf[options[:env]]['token']
+    @sell_deviation = @conf[options[:env]]['sell_deviation'] || 0
+    @buy_deviation = @conf[options[:env]]['buy_deviation'] || 0
     @markets = @conf[options[:env]]['markets']
     @log = Logger.new('logs/yunbi.log', 'daily')
 
@@ -107,7 +111,7 @@ class MyClient
     buy_price, sell_price = fetch_ticker_price(market)
 
     if coin_balance > 0
-      if ma_7[-1] < 0.99 * ma_30[-1]
+      if ma_7[-1] < ma_30[-1] * (1 - @sell_deviation)
         @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
         sell(market, coin_balance, buy_price)
       end
@@ -116,7 +120,7 @@ class MyClient
     if cny_balance > 0
       @log.info "ma7: #{ma_7[-2]}, #{ma_7[-1]}"
       @log.info "ma30: #{ma_30[-2]}, #{ma_30[-1]}"
-      if ma_7[-1] > ma_30[-1] && ma_7[-1] < ma_30[-1] * 1.01
+      if ma_7[-1] > ma_30[-1] && ma_7[-1] < ma_30[-1] * ( 1 + @buy_deviation)
         @log.info "buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
         buy(market, cny_balance, sell_price)
       end
@@ -171,7 +175,7 @@ class MyClient
 
       @log.info "strategy #{market}: coin: #{coin_balance}, budget: #{budget}"
 
-      strategy(market, period, coin_balance, budget, delay_sell, trade_strategy)
+      strategy(market, period, coin_balance, budget, trade_strategy)
     end
   end
 
