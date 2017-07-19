@@ -2,6 +2,7 @@ require 'active_support'
 require 'active_support/core_ext'
 require 'peatio_client'
 require 'yaml'
+require 'slack-notifier'
 
 require 'optparse'
 require 'logger'
@@ -23,6 +24,7 @@ class MyClient
   attr_accessor :sell_deviation
   attr_accessor :buy_deviation
   attr_accessor :markets
+  attr_accessor :slack_notifier
 
   def initialize(options)
     @client_public = PeatioAPI::Client.new endpoint: 'https://yunbi.com'
@@ -33,6 +35,8 @@ class MyClient
     @buy_deviation = @conf[options[:env]]['buy_deviation'] || 0
     @markets = @conf[options[:env]]['markets']
     @log = Logger.new('logs/yunbi.log', 'daily')
+    hook_url = @conf['slack_hook_url']
+    @slack_notifier = Slack::Notifier.new hook_url, channel: "#general"
 
     options = {
       access_key: access_key,
@@ -113,6 +117,7 @@ class MyClient
     if coin_balance > 0
       if ma_7[-1] < ma_30[-1] * (1 - @sell_deviation)
         @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
+        @slack_notifier.ping("sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
         sell(market, coin_balance, buy_price)
       end
     end
@@ -122,6 +127,7 @@ class MyClient
       @log.info "ma30: #{ma_30[-2]}, #{ma_30[-1]}"
       if ma_7[-1] > ma_30[-1] && ma_7[-1] < ma_30[-1] * ( 1 + @buy_deviation)
         @log.info "buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
+        @slack_notifier.ping("buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
         buy(market, cny_balance, sell_price)
       end
     end
