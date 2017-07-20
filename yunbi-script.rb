@@ -186,4 +186,8 @@ class MyClient
 end
 
 c = MyClient.new(options)
-c.start
+begin
+  c.start
+rescue Exception => e
+  c.slack_notifier.ping e
+end
