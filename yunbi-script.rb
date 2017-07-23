@@ -50,6 +50,13 @@ class MyClient
 
   def fetch_closing_prices(market, period = 15, limit = 30)
     raw_data = @client_public.get_public '/api/v2/k', market: market, period: period, limit: limit
+
+    # api data timestamp should be less then 60 seconds
+    api_timestamp = raw_data.map { |item| item[0] }.last
+    if ( Time.now.to_i - api_timestamp ) > 60
+      raise "bad timestamp for k api"
+    end
+
     raw_data.map {|item| item[4]}
   end
 
@@ -113,6 +120,7 @@ class MyClient
     ma_7  = self.send(:"#{strategy}", closing_price, 7)
     ma_30 = self.send(:"#{strategy}", closing_price, 30)
     buy_price, sell_price = fetch_ticker_price(market)
+    @log.info "#{market} ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}"
 
     if ma_7[-1] < ma_30[-1] * (1 - @sell_deviation)
       if coin_balance > 0
