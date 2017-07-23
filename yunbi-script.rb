@@ -108,27 +108,32 @@ class MyClient
     accounts_hash
   end
 
-  def strategy(market, period, coin_balance, cny_balance, strategy = 'moving_average')
+  def strategy(market, period, coin_balance, total_budget, strategy = 'moving_average')
     closing_price = fetch_closing_prices(market, period, 60)
     ma_7  = self.send(:"#{strategy}", closing_price, 7)
     ma_30 = self.send(:"#{strategy}", closing_price, 30)
     buy_price, sell_price = fetch_ticker_price(market)
 
-    if coin_balance > 0
-      if ma_7[-1] < ma_30[-1] * (1 - @sell_deviation)
+    if ma_7[-1] < ma_30[-1] * (1 - @sell_deviation)
+      if coin_balance > 0
         @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
         @slack_notifier.ping("sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
         sell(market, coin_balance, buy_price)
+        return
       end
     end
 
-    if cny_balance > 0
-      if ma_7[-1] > ma_30[-1] && ma_7[-1] < ma_30[-1] * ( 1 + @buy_deviation)
+    if ma_7[-1] > ma_30[-1] && ma_7[-1] < ma_30[-1] * ( 1 + @buy_deviation)
+      remainning_budget = total_budget - coin_balance * buy_price
+
+      if remainning_budget > 0
         @log.info "buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
         @slack_notifier.ping("buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
-        buy(market, cny_balance, sell_price)
+        buy(market, remainning_budget, sell_price)
+        return
       end
     end
+
   end
 
   def start
@@ -155,27 +160,13 @@ class MyClient
       end
     end
 
-    # calculate percentage
-    total_percentage = @markets.sum do |market| 
-      if accounts[market['coin']]['balance'] == 0
-        market['percentage']
-      else
-        0
-      end
-    end
-
     @markets.each do |opt|
       market         = opt['market']
       coin           = opt['coin']
       period         = opt['period']
       trade_strategy = opt['strategy']
-      percentage     = opt['percentage'].to_f / total_percentage
-      budget         = 0
+      budget         = opt['budget']
       coin_balance   = accounts[coin]['balance']
-
-      if coin_balance == 0
-        budget = (accounts['cny']['balance'].to_f * percentage).round(3)
-      end
 
       @log.info "strategy #{market}: coin: #{coin_balance}, budget: #{budget}"
 

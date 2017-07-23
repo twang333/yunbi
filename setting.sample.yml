@@ -4,21 +4,15 @@ production:
   sell_deviation:  0.01
   buy_deviation: 0.02
   markets:
-    - market     : "ethcny"
-      coin       : "eth"
-      percentage : 20
-      period     : 15 
-      deviation  : 0.01
-      strategy   : "exponential_moving_average"
     - market     : "qtumcny"
       coin       : "qtum"
-      percentage : 60
+      budget     : 10000
       period     : 15 
       deviation  : 0.1
       strategy   : "exponential_moving_average"
     - market     : "sccny"
       coin       : "sc"
-      percentage : 20
+      budget     : 10000
       period     : 15 
       deviation  : 1
       strategy   : "exponential_moving_average"
