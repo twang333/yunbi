@@ -51,10 +51,11 @@ class MyClient
   def fetch_closing_prices(market, period = 15, limit = 30)
     raw_data = @client_public.get_public '/api/v2/k', market: market, period: period, limit: limit
 
-    # api data timestamp should be less then 60 seconds
+    # api data timestamp should be less then 1000 seconds
     api_timestamp = raw_data.map { |item| item[0] }.last
-    if ( Time.now.to_i - api_timestamp ) > 60
-      raise "bad timestamp for k api"
+    delay = Time.now.to_i - api_timestamp
+    if  delay > 1000
+      raise "bad timestamp for k api, delay: #{delay}"
     end
 
     raw_data.map {|item| item[4]}
@@ -124,7 +125,7 @@ class MyClient
 
     if ma_7[-1] < ma_30[-1] * (1 - @sell_deviation)
       if coin_balance > 0
-        @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
+        @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; quantity: #{coin_balance}"
         @slack_notifier.ping("sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
         sell(market, coin_balance, buy_price)
         return
@@ -132,11 +133,11 @@ class MyClient
     end
 
     if ma_7[-1] > ma_30[-1] && ma_7[-1] < ma_30[-1] * ( 1 + @buy_deviation)
-      remainning_budget = total_budget - coin_balance * buy_price
+      remainning_budget = (total_budget - coin_balance * buy_price).round
 
-      if remainning_budget > 0
-        @log.info "buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; strategy: #{strategy}"
-        @slack_notifier.ping("buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
+      if remainning_budget > 10
+        @log.info "buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; budget: #{remainning_budget}"
+        @slack_notifier.ping("buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}, budget: #{remainning_budget}")
         buy(market, remainning_budget, sell_price)
         return
       end
