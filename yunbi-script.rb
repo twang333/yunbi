@@ -132,7 +132,7 @@ class MyClient
       end
     end
 
-    if ma_7[-1] > ma_30[-1] && ma_7[-1] < ma_30[-1] * ( 1 + @buy_deviation)
+    if ma_7[-1] > ma_30[-1] && ma_7[-1] < ma_30[-1] * ( 1 + @buy_deviation) && ma_7[-1] > ma_7[-2]
       remainning_budget = (total_budget - coin_balance * buy_price).round
 
       if remainning_budget > 10
