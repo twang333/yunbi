@@ -123,6 +123,7 @@ class MyClient
     buy_price, sell_price = fetch_ticker_price(market)
     @log.info "#{market} ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}"
 
+    # 止损 7线跌破30线
     if ma_7[-1] < ma_30[-1] * (1 - @sell_deviation)
       if coin_balance > 0
         @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; quantity: #{coin_balance}"
@@ -132,6 +133,18 @@ class MyClient
       end
     end
 
+    # 止盈 盈利10%, 7线下跌则卖出60%。
+    if ma_7[-1] > ma_30[-1] * 1.1 && ma_7[-1] < ma_7[-2] * 0.99
+      if coin_balance > 0
+        coin_to_sell = coin_balance * 0.6
+        @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; quantity: #{coin_to_sell}"
+        @slack_notifier.ping("sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
+        sell(market, coin_to_sell, buy_price)
+        return
+      end
+    end
+
+    # 黄金交叉 买入点
     if ma_7[-1] > ma_30[-1] && ma_7[-1] < ma_30[-1] * ( 1 + @buy_deviation) && ma_7[-1] > ma_7[-2]
       remainning_budget = (total_budget - coin_balance * buy_price).round
 
