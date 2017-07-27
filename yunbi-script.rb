@@ -133,8 +133,8 @@ class MyClient
       end
     end
 
-    # 止盈 盈利10%, 7线下跌则卖出60%。
-    if ma_7[-1] > ma_30[-1] * 1.1 && ma_7[-1] < ma_7[-2] * 0.99
+    # 止盈 盈利5%, 7线下跌则卖出60%。
+    if ma_7[-1] > ma_30[-1] * 1.05 && ma_7[-1] < ma_7[-2] * 0.99
       if coin_balance > 0
         coin_to_sell = coin_balance * 0.6
         @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; quantity: #{coin_to_sell}"
