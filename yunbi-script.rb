@@ -21,8 +21,6 @@ class MyClient
   attr_accessor :client
   attr_accessor :conf
   attr_accessor :log
-  attr_accessor :sell_deviation
-  attr_accessor :buy_deviation
   attr_accessor :markets
   attr_accessor :slack_notifier
 
@@ -31,8 +29,6 @@ class MyClient
     @conf = YAML.load_file("setting.yml")
     access_key = @conf[options[:env]]['access']
     access_token = @conf[options[:env]]['token']
-    @sell_deviation = @conf[options[:env]]['sell_deviation'] || 0
-    @buy_deviation = @conf[options[:env]]['buy_deviation'] || 0
     @markets = @conf[options[:env]]['markets']
     @log = Logger.new('logs/yunbi.log', 'daily')
     hook_url = @conf['slack_hook_url']
@@ -124,7 +120,7 @@ class MyClient
     @log.info "#{market} ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}"
 
     # 止损 7线跌破30线
-    if ma_7[-1] < ma_30[-1] * (1 - @sell_deviation)
+    if ma_7[-1] < ma_30[-1]
       if coin_balance > 0
         @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; quantity: #{coin_balance}"
         @slack_notifier.ping("sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
@@ -145,7 +141,7 @@ class MyClient
     end
 
     # 黄金交叉 买入点
-    if ma_7[-1] > ma_30[-1] && ma_7[-1] < ma_30[-1] * ( 1 + @buy_deviation) && ma_7[-1] > ma_7[-2]
+    if ma_7[-1] > ma_30[-1] * 1.01 && ma_7[-1] < ma_30[-1] * 1.03 && ma_7[-1] > ma_7[-2]
       remainning_budget = (total_budget - coin_balance * buy_price).round
 
       if remainning_budget > 10
