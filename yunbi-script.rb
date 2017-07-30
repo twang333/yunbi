@@ -54,7 +54,9 @@ class MyClient
       raise "bad timestamp for k api, delay: #{delay}"
     end
 
-    raw_data.map {|item| item[4]}
+    result = raw_data.map {|item| item[4]}
+    #don't use the last one
+    result[0...-1]
   end
 
   def fetch_ticker_price(market)
