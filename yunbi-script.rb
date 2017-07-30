@@ -129,8 +129,8 @@ class MyClient
       end
     end
 
-    # 止盈 盈利5%, 7线下跌则卖出60%。
-    if ma_7[-1] > ma_30[-1] * 1.05 && ma_7[-1] < ma_7[-2] * 0.99
+    # 止盈 盈利15%, 7线下跌则卖出60%。
+    if (buy_price * coin_balance > 1.15 * total_budget) && (ma_7[-1] < ma_7[-2] * 0.99)
       if coin_balance > 0
         coin_to_sell = coin_balance * 0.6
         @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; quantity: #{coin_to_sell}"
@@ -141,10 +141,10 @@ class MyClient
     end
 
     # 黄金交叉 买入点
-    if ma_7[-1] > ma_30[-1] * 1.01 && ma_7[-1] < ma_30[-1] * 1.03 && ma_7[-1] > ma_7[-2]
+    if ma_7[-1] > ma_30[-1] && ma_7[-1] > ma_7[-2]
       remainning_budget = (total_budget - coin_balance * buy_price).round
 
-      if remainning_budget > 10
+      if remainning_budget > 100
         @log.info "buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; budget: #{remainning_budget}"
         @slack_notifier.ping("buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}, budget: #{remainning_budget}")
         buy(market, remainning_budget, sell_price)
