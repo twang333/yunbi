@@ -124,7 +124,8 @@ class MyClient
       if coin_balance > 0
         @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; quantity: #{coin_balance}"
         @slack_notifier.ping("sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
-        sell(market, coin_balance, buy_price)
+        sell(market, coin_balance * 0.5, buy_price)
+        sell(market, coin_balance * 0.5, ma_7[-1])
         return
       end
     end
@@ -147,7 +148,8 @@ class MyClient
       if remainning_budget > 100
         @log.info "buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; budget: #{remainning_budget}"
         @slack_notifier.ping("buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}, budget: #{remainning_budget}")
-        buy(market, remainning_budget, sell_price)
+        buy(market, remainning_budget * 0.5, sell_price)
+        buy(market, remainning_budget * 0.5, ma_7[-1])
         return
       end
     end
