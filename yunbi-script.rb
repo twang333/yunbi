@@ -89,11 +89,13 @@ class MyClient
   end
 
   def buy(market, total, price)
+    @slack_notifier.ping("buy #{market} with price: #{price}, budget: #{total}")
     volume = total / price
     @client.post '/api/v2/orders', market: market, side: 'buy', volume: volume, price: price
   end
 
   def sell(market, volume, price)
+    @slack_notifier.ping("sell #{market} with price: #{price}, volume: #{volume}")
     @client.post '/api/v2/orders', market: market, side: 'sell', volume: volume, price: price
   end
 
@@ -125,9 +127,8 @@ class MyClient
     if ma_7[-1] < ma_30[-1]
       if coin_balance > 0
         @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; quantity: #{coin_balance}"
-        @slack_notifier.ping("sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
-        sell(market, coin_balance * 0.5, buy_price)
-        sell(market, coin_balance * 0.5, ma_7[-1])
+        sell(market, coin_balance * 0.8, buy_price)
+        sell(market, coin_balance * 0.2, ma_7[-1])
         return
       end
     end
@@ -137,7 +138,6 @@ class MyClient
       if coin_balance > 0
         coin_to_sell = coin_balance * 0.6
         @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; quantity: #{coin_to_sell}"
-        @slack_notifier.ping("sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
         sell(market, coin_to_sell, buy_price)
         return
       end
@@ -149,9 +149,8 @@ class MyClient
 
       if remainning_budget > 100
         @log.info "buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; budget: #{remainning_budget}"
-        @slack_notifier.ping("buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}, budget: #{remainning_budget}")
-        buy(market, remainning_budget * 0.5, sell_price)
-        buy(market, remainning_budget * 0.5, ma_7[-1])
+        buy(market, remainning_budget * 0.8, sell_price)
+        buy(market, remainning_budget * 0.2, ma_7[-1])
         return
       end
     end
