@@ -145,7 +145,7 @@ class MyClient
     end
 
     # 黄金交叉 且最后五次收盘价相差2%
-    deviation = (last_five/min - 1).round
+    deviation = (last_five.last/min - 1).round
     if ma_7[-1] > ma_30[-1] && ma_7[-1] > ma_7[-2] && deviation >= 0.02
       remainning_budget = (total_budget - coin_balance * buy_price).round
 
