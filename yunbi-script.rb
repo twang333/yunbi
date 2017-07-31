@@ -114,11 +114,17 @@ class MyClient
     accounts_hash
   end
 
+  def closing_price_deviation(prices)
+    min = prices.min
+    max = prices.max
+    (max/min - 1).round
+  end
+
   def strategy(market, period, coin_balance, total_budget, strategy = 'moving_average')
     closing_price = fetch_closing_prices(market, period, 60)
     ma_7  = self.send(:"#{strategy}", closing_price[0...-1], 7)
     ma_30 = self.send(:"#{strategy}", closing_price[0...-1], 30)
-    last_but_one, last = closing_price[-2..-1]
+    last_five = closing_price[-5..-1]
     buy_price, sell_price = fetch_ticker_price(market)
     @log.info "#{market} ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}"
 
@@ -131,8 +137,8 @@ class MyClient
       end
     end
 
-    # 止盈 盈利15%, 最后收盘相差0.02
-    if (buy_price * coin_balance > 1.15 * total_budget) && (last_but_one/last - 1) >= 0.04
+    # 止盈 盈利15%, 最后五次收盘相差4%
+    if (buy_price * coin_balance > 1.15 * total_budget) && closing_price_deviation(last_five) >= 0.04
       if coin_balance > 0
         coin_to_sell = coin_balance * 0.6
         @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; quantity: #{coin_to_sell}"
@@ -141,8 +147,8 @@ class MyClient
       end
     end
 
-    # 黄金交叉 且最后收盘价相差0.02
-    if ma_7[-1] > ma_30[-1] && ma_7[-1] > ma_7[-2] && (1 - last_but_one / last) >= 0.02
+    # 黄金交叉 且最后五次收盘价相差2%
+    if ma_7[-1] > ma_30[-1] && ma_7[-1] > ma_7[-2] && closing_price_deviation(last_five) >= 0.02
       remainning_budget = (total_budget - coin_balance * buy_price).round
 
       if remainning_budget > 100
