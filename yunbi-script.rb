@@ -134,7 +134,7 @@ class MyClient
     # 止盈 盈利15%, 最后五次收盘相差4%
     min = last_five.min
     max = last_five.max
-    deviation = (max/min - 1).round
+    deviation = (max/min - 1).round(3)
     if (buy_price * coin_balance > 1.15 * total_budget) && deviation >= 0.04
       if coin_balance > 0
         coin_to_sell = coin_balance * 0.6
@@ -145,7 +145,7 @@ class MyClient
     end
 
     # 黄金交叉 且最后五次收盘价相差2%
-    deviation = (last_five.last/min - 1).round
+    deviation = (last_five.last/min - 1).round(3)
     if ma_7[-1] > ma_30[-1] && ma_7[-1] > ma_7[-2] && deviation >= 0.02
       remainning_budget = (total_budget - coin_balance * buy_price).round
 
