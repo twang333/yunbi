@@ -135,7 +135,7 @@ class MyClient
     min = last_five.min
     max = last_five.max
     deviation = (max/min - 1).round(3)
-    if (buy_price * coin_balance > 1.15 * total_budget) && deviation >= 0.04
+    if (buy_price * coin_balance > 1.10 * total_budget) && deviation <= 0.01
       if coin_balance > 0
         coin_to_sell = coin_balance * 0.6
         @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; quantity: #{coin_to_sell}"
