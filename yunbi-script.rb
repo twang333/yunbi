@@ -116,45 +116,38 @@ class MyClient
 
   def strategy(market, period, coin_balance, total_budget, strategy = 'moving_average')
     closing_price = fetch_closing_prices(market, period, 60)
-    ma_7  = self.send(:"#{strategy}", closing_price[0...-1], 7)
-    ma_30 = self.send(:"#{strategy}", closing_price[0...-1], 30)
-    last_five = closing_price[-5..-1]
+    ma_7  = self.send(:"#{strategy}", closing_price, 7)
+    ma_30 = self.send(:"#{strategy}", closing_price, 30)
     buy_price, sell_price = fetch_ticker_price(market)
     @log.info "#{market} ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}"
 
     # 止损 7线跌破30线
     if ma_7[-1] < ma_30[-1]
       if coin_balance > 0
-        @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; quantity: #{coin_balance}"
-        sell(market, coin_balance, buy_price)
+        @slack_notifier.ping("#{market} ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
         return
       end
     end
 
-    # 止盈 盈利15%, 最后五次收盘相差4%
-    min = last_five.min
-    max = last_five.max
-    deviation = (max/min - 1).round(3)
-    if (buy_price * coin_balance > 1.10 * total_budget) && deviation <= 0.01
-      if coin_balance > 0
-        coin_to_sell = coin_balance * 0.6
-        @log.info "sell #{market} with price: #{buy_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; quantity: #{coin_to_sell}"
-        sell(market, coin_to_sell, buy_price)
-        return
-      end
-    end
-
-    # 黄金交叉 且最后五次收盘价相差2%
-    deviation = (last_five.last/min - 1).round(3)
-    if ma_7[-1] > ma_30[-1] && ma_7[-1] > ma_7[-2] && deviation >= 0.02
+    if ma_7[-1] > ma_30[-1] && ma_7[-1] > ma_7[-2] 
       remainning_budget = (total_budget - coin_balance * buy_price).round
 
       if remainning_budget > 100
-        @log.info "buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; budget: #{remainning_budget}"
-        buy(market, remainning_budget, sell_price)
+        @slack_notifier.ping("#{market} ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
         return
       end
     end
+
+    # 黄金交叉
+    # if ma_7[-1] > ma_30[-1] && ma_7[-1] > ma_7[-2] 
+    #   remainning_budget = (total_budget - coin_balance * buy_price).round
+
+    #   if remainning_budget > 100
+    #     @log.info "buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; budget: #{remainning_budget}"
+    #     buy(market, remainning_budget, sell_price)
+    #     return
+    #   end
+    # end
 
   end
 
