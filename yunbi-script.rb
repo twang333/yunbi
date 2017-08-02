@@ -47,10 +47,10 @@ class MyClient
   def fetch_closing_prices(market, period = 15, limit = 30)
     raw_data = @client_public.get_public '/api/v2/k', market: market, period: period, limit: limit
 
-    # api data timestamp should be less then 1000 seconds
+    # api data timestamp should be less then 3600 seconds
     api_timestamp = raw_data.map { |item| item[0] }.last
     delay = Time.now.to_i - api_timestamp
-    if  delay > 1000
+    if  delay > 3600
       raise "bad timestamp for k api, delay: #{delay}"
     end
 
