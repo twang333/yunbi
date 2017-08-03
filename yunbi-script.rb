@@ -148,7 +148,7 @@ class MyClient
       return
     end
 
-    if ma_7[-1] > ma_30[-1] && ma_7[-1]/ma[-2] < 0.998
+    if ma_7[-1] > ma_30[-1] && ma_7[-1]/ma_7[-2] < 0.998
       if coin_balance > 0
         @slack_notifier.ping "15min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}"
         sell(market, coin_balance * 0.5, buy_price)
