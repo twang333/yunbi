@@ -114,41 +114,47 @@ class MyClient
     accounts_hash
   end
 
-  def strategy(market, period, coin_balance, total_budget, strategy = 'moving_average')
-    closing_price = fetch_closing_prices(market, period, 60)
-    ma_7  = self.send(:"#{strategy}", closing_price, 7)
-    ma_30 = self.send(:"#{strategy}", closing_price, 30)
+  def strategy(market, coin_balance, total_budget, strategy = 'moving_average')
+    closing_price_st = fetch_closing_prices(market, 5, 60)
+    ma_7_st  = self.send(:"#{strategy}", closing_price_st, 7)
+    ma_30_st = self.send(:"#{strategy}", closing_price_st, 30)
+
+    closing_price_lt = fetch_closing_prices(market, 60, 60)
+    ma_7_lt = self.send(:"#{strategy}", closing_price_lt, 7)
+    ma_30_lt = self.send(:"#{strategy}", closing_price_lt, 30)
+
     buy_price, sell_price = fetch_ticker_price(market)
-    @log.info "#{market} ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}"
+    @log.info "5min #{market} ma_7: #{ma_7_st[-1]}; ma_30: #{ma_30_st[-1]}"
+    @log.info "60min #{market} ma_7: #{ma_7_lt[-1]}; ma_30: #{ma_30_lt[-1]}"
 
-    # 止损 7线跌破30线
-    if ma_7[-1] < ma_30[-1]
-      if coin_balance > 0
-        @slack_notifier.ping("#{market} ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
-        return
+    if coin_balance > 0
+      if ma_7_st[-1] < ma_30_st[-1]
+        @slack_notifier.ping "5min #{market} ma_7: #{ma_7_st[-1]}; ma_30: #{ma_30_st[-1]}"
+      end
+
+      if ma_7_lt[-1] < ma_30_lt[-1]
+        @slack_notifier.ping "60min #{market} ma_7: #{ma_7_lt[-1]}; ma_30: #{ma_30_lt[-1]}"
+      end
+
+      if ma_7_lt[-1] < ma_30_lt[-1] && ma_7_st[-1] > ma_30_st[-1]
+        @slack_notifier.ping "consider sell"
       end
     end
 
-    if ma_7[-1] > ma_30[-1] && ma_7[-1] > ma_7[-2] 
-      remainning_budget = (total_budget - coin_balance * buy_price).round
+    remainning_budget = (total_budget - coin_balance * buy_price).round
+    if remainning_budget > 100
+      if ma_7_st[-1] > ma_30_st[-1] 
+        @slack_notifier.ping "5min #{market} ma_7: #{ma_7_st[-1]}; ma_30: #{ma_30_st[-1]}"
+      end
 
-      if remainning_budget > 100
-        @slack_notifier.ping("#{market} ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}")
-        return
+      if ma_7_lt[-1] > ma_30_lt[-1]
+        @slack_notifier.ping "60min #{market} ma_7: #{ma_7_lt[-1]}; ma_30: #{ma_30_lt[-1]}"
+      end
+
+      if ma_7_lt[-1] > ma_30_lt[-1] && ma_7_st[-1] < ma_30_st[-1]
+        @slack_notifier.ping "consider buy"
       end
     end
-
-    # 黄金交叉
-    # if ma_7[-1] > ma_30[-1] && ma_7[-1] > ma_7[-2] 
-    #   remainning_budget = (total_budget - coin_balance * buy_price).round
-
-    #   if remainning_budget > 100
-    #     @log.info "buy #{market} with price: #{sell_price}, ma_7: #{ma_7[-1]}; ma_30: #{ma_30[-1]}; budget: #{remainning_budget}"
-    #     buy(market, remainning_budget, sell_price)
-    #     return
-    #   end
-    # end
-
   end
 
   def start
@@ -178,14 +184,13 @@ class MyClient
     @markets.each do |opt|
       market         = opt['market']
       coin           = opt['coin']
-      period         = opt['period']
       trade_strategy = opt['strategy']
       budget         = opt['budget']
       coin_balance   = accounts[coin]['balance']
 
       @log.info "strategy #{market}: coin: #{coin_balance}, budget: #{budget}"
 
-      strategy(market, period, coin_balance, budget, trade_strategy)
+      strategy(market, coin_balance, budget, trade_strategy)
     end
   end
 
