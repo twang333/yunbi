@@ -115,45 +115,45 @@ class MyClient
   end
 
   def strategy(market, coin_balance, total_budget, strategy = 'moving_average')
-    closing_price_st = fetch_closing_prices(market, 5, 60)
-    ma_7_st  = self.send(:"#{strategy}", closing_price_st, 7)
-    ma_30_st = self.send(:"#{strategy}", closing_price_st, 30)
-
-    closing_price_lt = fetch_closing_prices(market, 60, 60)
-    ma_7_lt = self.send(:"#{strategy}", closing_price_lt, 7)
-    ma_30_lt = self.send(:"#{strategy}", closing_price_lt, 30)
+    closing_price = fetch_closing_prices(market, 15, 60)
+    ma_7  = self.send(:"#{strategy}", closing_price, 7)
+    ma_30 = self.send(:"#{strategy}", closing_price, 30)
 
     buy_price, sell_price = fetch_ticker_price(market)
-    @log.info "5min #{market} ma_7: #{ma_7_st[-1]}; ma_30: #{ma_30_st[-1]}"
-    @log.info "60min #{market} ma_7: #{ma_7_lt[-1]}; ma_30: #{ma_30_lt[-1]}"
+    @log.info "15min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}"
 
-    if coin_balance > 0
-      if ma_7_st[-1] < ma_30_st[-1]
-        @slack_notifier.ping "5min #{market} ma_7: #{ma_7_st[-1]}; ma_30: #{ma_30_st[-1]}"
-      end
+    remainning_budget = (total_budget - coin_balance * sell_price).round
 
-      if ma_7_lt[-1] < ma_30_lt[-1]
-        @slack_notifier.ping "60min #{market} ma_7: #{ma_7_lt[-1]}; ma_30: #{ma_30_lt[-1]}"
+    if ma_7[-1] < ma_30[-1] && ma_7[-1]/ma_7[-2] > 1.002
+      if remainning_budget > 100
+        @slack_notifier.ping "15min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}"
+        buy(market, remainning_budget * 0.5, sell_price)
       end
-
-      if ma_7_lt[-1] < ma_30_lt[-1] && ma_7_st[-1] > ma_30_st[-1]
-        @slack_notifier.ping "consider sell"
-      end
+      return
     end
 
-    remainning_budget = (total_budget - coin_balance * buy_price).round
-    if remainning_budget > 100
-      if ma_7_st[-1] > ma_30_st[-1] 
-        @slack_notifier.ping "5min #{market} ma_7: #{ma_7_st[-1]}; ma_30: #{ma_30_st[-1]}"
+    if ma_7[-1] < ma_30[-1] && ma_7[-1]/ma_7[-2] < 1
+      if coin_balance > 0
+        @slack_notifier.ping "15min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}"
+        sell(market, coin_balance, buy_price)
       end
+      return
+    end
 
-      if ma_7_lt[-1] > ma_30_lt[-1]
-        @slack_notifier.ping "60min #{market} ma_7: #{ma_7_lt[-1]}; ma_30: #{ma_30_lt[-1]}"
+    if ma_7[-1] > ma_30[-1] && ma_7[-1]/ma_7[-2] > 1
+      if remainning_budget > 100
+        @slack_notifier.ping "15min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}"
+        buy(market, remainning_budget, sell_price)
       end
+      return
+    end
 
-      if ma_7_lt[-1] > ma_30_lt[-1] && ma_7_st[-1] < ma_30_st[-1]
-        @slack_notifier.ping "consider buy"
+    if ma_7[-1] > ma_30[-1] && ma_7[-1]/ma[-2] < 0.998
+      if coin_balance > 0
+        @slack_notifier.ping "15min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}"
+        sell(market, coin_balance * 0.5, buy_price)
       end
+      return
     end
   end
 
