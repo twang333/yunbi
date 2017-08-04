@@ -115,7 +115,7 @@ class MyClient
   end
 
   def strategy(market, coin_balance, total_budget, strategy = 'moving_average')
-    closing_price = fetch_closing_prices(market, 15, 60)
+    closing_price = fetch_closing_prices(market, 60, 60)
     ma_7  = self.send(:"#{strategy}", closing_price, 7)
     ma_30 = self.send(:"#{strategy}", closing_price, 30)
 
