@@ -23,15 +23,21 @@ class MyClient
   attr_accessor :log
   attr_accessor :markets
   attr_accessor :slack_notifier
+  attr_accessor :stop_loss
+  attr_accessor :stop_profit
+  attr_accessor :strategy
 
   def initialize(options)
-    @client_public = PeatioAPI::Client.new endpoint: 'https://yunbi.com'
-    @conf = YAML.load_file("setting.yml")
-    access_key = @conf[options[:env]]['access']
-    access_token = @conf[options[:env]]['token']
-    @markets = @conf[options[:env]]['markets']
-    @log = Logger.new('logs/yunbi.log', 'daily')
-    hook_url = @conf['slack_hook_url']
+    @client_public  = PeatioAPI::Client.new endpoint: 'https://yunbi.com'
+    @conf           = YAML.load_file("setting.yml")
+    access_key      = @conf[options[:env]]['access']
+    access_token    = @conf[options[:env]]['token']
+    @markets        = @conf[options[:env]]['markets']
+    @stop_loss      = @conf[options[:env]]['loss']
+    @stop_profit    = @conf[options[:env]]['profit']
+    @strategy       = @conf[options[:env]]['strategy']
+    @log            = Logger.new('logs/yunbi.log', 'daily')
+    hook_url        = @conf['slack_hook_url']
     @slack_notifier = Slack::Notifier.new hook_url, channel: "#general"
 
     options = {
@@ -42,6 +48,10 @@ class MyClient
     }
 
     @client = PeatioAPI::Client.new options
+  end
+
+  def get_markets
+    @client_public.get_public '/api/v2/markets'
   end
 
   def fetch_closing_prices(market, period = 15, limit = 30)
@@ -114,37 +124,33 @@ class MyClient
     accounts_hash
   end
 
-  def strategy(market, coin_balance, total_budget, strategy = 'moving_average')
+  def strategy(market, strategy = 'moving_average')
     closing_price = fetch_closing_prices(market, 60, 60)
     ma_7  = self.send(:"#{strategy}", closing_price, 7)
     ma_30 = self.send(:"#{strategy}", closing_price, 30)
 
     buy_price, sell_price = fetch_ticker_price(market)
-    @log.info "60min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}"
 
-    remainning_budget = (total_budget - coin_balance * sell_price).round
+    ratio = ma_7[-1]/ma_30[-1]
+    if ratio <= 1.005 && ratio >= 0.995 && ma_7[-1]/ma_7[-2] > 1 && sell_price <= ma_7[-1]
+      @slack_notifier.ping("good time to buy #{market}")
+      buy(market, 300, sell_price)
+      return
+    end
+  end
 
-    if ma_7[-1] < ma_30[-1]
-      if coin_balance > 0 && ma_7[-1] / ma_7[-2] < 1
-        @slack_notifier.ping "60min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}"
-        sell(market, coin_balance, buy_price)
-      end
+  def monitor(market, coin_balance, price)
+    buy_price, sell_price = fetch_ticker_price(market)
 
-      if ma_7[-1]/ma_7[-2] > 1.005
-        @slack_notifier.ping "60min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}, good time to buy: #{sell_price}"
-      end
+    if sell_price / price >= (1 + @stop_profit)
+      @slack_notifier.ping "profit: #{market}, sell: #{sell_price}"
+      sell(market, coin_balance, sell_price)
       return
     end
 
-    if ma_7[-1] > ma_30[-1]
-      if remainning_budget > 100 && buy_price / ma_7[-1] < 1.02
-        @slack_notifier.ping "60min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}"
-        buy(market, remainning_budget, sell_price)
-      end
-      if buy_price / ma_7[-1] > 1.05 && coin_balance > 0
-        @slack_notifier.ping "60min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}, good time to sell"
-        sell(market, coin_balance * 0.5, buy_price)
-      end
+    if buy_price / price <= (1 - @stop_loss)
+      @slack_notifier.ping "loss: #{market}, sell: #{buy_price}"
+      sell(market, coin_balance, buy_price)
       return
     end
 
@@ -166,25 +172,23 @@ class MyClient
       accounts = get_accounts
     end
 
-    # handle deviation
-    @markets.each do |market|
-      deviation = market['deviation']
-      if accounts[market['coin']]['balance'] < deviation
-        accounts[market['coin']]['balance'] = 0
-      end
-    end
-
     @markets.each do |opt|
-      market         = opt['market']
-      coin           = opt['coin']
-      trade_strategy = opt['strategy']
-      budget         = opt['budget']
-      coin_balance   = accounts[coin]['balance']
+      market       = opt['market']
+      coin         = opt['coin']
+      price        = opt['price']
+      coin_balance = accounts[coin]['balance']
 
-      @log.info "strategy #{market}: coin: #{coin_balance}, budget: #{budget}"
-
-      strategy(market, coin_balance, budget, trade_strategy)
+      monitor(market, coin_balance, price)
     end
+
+    existing_markets = @markets.map { |opt| opt['market'] }
+    all_markets = get_markets
+    all_markets.each do |market|
+      m = market['id']
+      next if existing_markets.include?(m)
+      strategy(m, @strategy)
+    end
+
   end
 
 end
