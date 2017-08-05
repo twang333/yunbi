@@ -132,7 +132,7 @@ class MyClient
     buy_price, sell_price = fetch_ticker_price(market)
 
     ratio = ma_7[-1]/ma_30[-1]
-    if ratio > 0.99 && ma_7[-1]/ma_7[-2] > 1 && sell_price <= ma_7[-1]
+    if ratio > 0.98 && ratio < 1.02 && ma_7[-1]/ma_7[-2] > 1 && sell_price <= ma_7[-1]
       @slack_notifier.ping("good time to buy #{market}")
       buy(market, 1000, sell_price)
       return
@@ -175,7 +175,7 @@ class MyClient
     # handle deviation
     @markets.each do |market|
       deviation = market['deviation']
-      if accounts[market['coin']]['balance'] < eviation
+      if accounts[market['coin']]['balance'] < deviation
         accounts[market['coin']]['balance'] = 0
       end
     end
