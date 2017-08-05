@@ -172,6 +172,14 @@ class MyClient
       accounts = get_accounts
     end
 
+    # handle deviation
+    @markets.each do |market|
+      deviation = market['deviation']
+      if accounts[market['coin']]['balance'] < eviation
+        accounts[market['coin']]['balance'] = 0
+      end
+    end
+
     @markets.each do |opt|
       market       = opt['market']
       coin         = opt['coin']
