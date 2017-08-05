@@ -124,37 +124,30 @@ class MyClient
 
     remainning_budget = (total_budget - coin_balance * sell_price).round
 
-    if ma_7[-1] < ma_30[-1] && ma_7[-1]/ma_7[-2] > 1.002
-      if remainning_budget > 100
-        @slack_notifier.ping "60min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}"
-        buy(market, remainning_budget * 0.5, sell_price)
-      end
-      return
-    end
-
-    if ma_7[-1] < ma_30[-1] && ma_7[-1]/ma_7[-2] < 1.001
-      if coin_balance > 0
+    if ma_7[-1] < ma_30[-1]
+      if coin_balance > 0 && ma_7[-1] / ma_7[-2] < 1
         @slack_notifier.ping "60min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}"
         sell(market, coin_balance, buy_price)
       end
-      return
-    end
 
-    if ma_7[-1] > ma_30[-1] && ma_7[-1]/ma_7[-2] > 1.001
-      if remainning_budget > 100
-        @slack_notifier.ping "60min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}"
-        buy(market, remainning_budget, sell_price)
+      if ma_7[-1]/ma_7[-2] > 1.005
+        @slack_notifier.ping "60min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}, good time to buy: #{sell_price}"
       end
       return
     end
 
-    if ma_7[-1] > ma_30[-1] && ma_7[-1]/ma_7[-2] < 0.998
-      if coin_balance > 0
+    if ma_7[-1] > ma_30[-1]
+      if remainning_budget > 100 && buy_price / ma_7[-1] < 1.02
         @slack_notifier.ping "60min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}"
+        buy(market, remainning_budget, sell_price)
+      end
+      if buy_price / ma_7[-1] > 1.05 && coin_balance > 0
+        @slack_notifier.ping "60min #{market} ma_7: #{ma_7[-2..-1]}; ma_30: #{ma_30[-1]}, good time to sell"
         sell(market, coin_balance * 0.5, buy_price)
       end
       return
     end
+
   end
 
   def start
