@@ -132,9 +132,9 @@ class MyClient
     buy_price, sell_price = fetch_ticker_price(market)
 
     ratio = ma_7[-1]/ma_30[-1]
-    if ratio <= 1.005 && ratio >= 0.995 && ma_7[-1]/ma_7[-2] > 1 && sell_price <= ma_7[-1]
+    if ratio > 0.99 && ma_7[-1]/ma_7[-2] > 1 && sell_price <= ma_7[-1]
       @slack_notifier.ping("good time to buy #{market}")
-      buy(market, 300, sell_price)
+      buy(market, 1000, sell_price)
       return
     end
   end
