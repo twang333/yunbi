@@ -159,29 +159,11 @@ class MyClient
   end
 
   def start
-    coins = @markets.map{|m| m['coin']}
-
-    accounts = get_accounts
-    coin_locked = coins.sum {|l| accounts[l]['locked']}
-
-    if accounts['cny']['locked'] > 0 || coin_locked > 0
-      @log.info "cancel all orders due to locked"
-      cancel_all_orders
-
-      sleep(5)
-
-      # reload accounts
-      accounts = get_accounts
-    end
-
-    existing_markets = @markets.map { |opt| opt['market'] }
     all_markets = get_markets
     all_markets.each do |market|
       m = market['id']
-      next if existing_markets.include?(m)
       strategy(m, @strategy)
     end
-
   end
 
 end
