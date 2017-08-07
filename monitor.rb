@@ -125,6 +125,7 @@ class MyClient
   end
 
   def monitor(market, coin_balance, price)
+    return unless coin_balance > 0
     buy_price, sell_price = fetch_ticker_price(market)
 
     if sell_price / price >= (1 + @stop_profit)
