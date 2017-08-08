@@ -3,6 +3,7 @@ require 'active_support/core_ext'
 require 'peatio_client'
 require 'yaml'
 require 'slack-notifier'
+require 'redis'
 
 require 'optparse'
 require 'logger'
@@ -26,6 +27,7 @@ class MyClient
   attr_accessor :stop_loss
   attr_accessor :stop_profit
   attr_accessor :strategy
+  attr_accessor :redis
 
   def initialize(options)
     @client_public  = PeatioAPI::Client.new endpoint: 'https://yunbi.com'
@@ -37,6 +39,7 @@ class MyClient
     @stop_profit    = @conf[options[:env]]['profit']
     @strategy       = @conf[options[:env]]['strategy']
     @log            = Logger.new('logs/yunbi.log', 'daily')
+    @redis          = Redis.new
     hook_url        = @conf['slack_hook_url']
     @slack_notifier = Slack::Notifier.new hook_url, channel: "#general"
 
@@ -128,14 +131,20 @@ class MyClient
     return unless coin_balance > 0
     buy_price, sell_price = fetch_ticker_price(market)
 
+    if @redis.get(market)
+      price = @redis.get(market).to_f
+    end
+
     if sell_price / price >= (1 + @stop_profit)
       @slack_notifier.ping "profit: #{market}, sell: #{sell_price}"
-      sell(market, coin_balance, sell_price)
+      @redis.set(market, sell_price)
+      sell(market, coin_balance * 1/2, sell_price)
       return
     end
 
     if buy_price / price <= (1 - @stop_loss)
       @slack_notifier.ping "loss: #{market}, sell: #{buy_price}"
+      @redis.del(market)
       sell(market, coin_balance, buy_price)
       return
     end

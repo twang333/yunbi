@@ -16,6 +16,7 @@ GEM
     peatio_client (0.0.7)
       activesupport
       faye-websocket
+    redis (3.3.3)
     slack-notifier (2.2.2)
     thread_safe (0.3.6)
     tzinfo (1.2.3)
@@ -29,6 +30,7 @@ PLATFORMS
 
 DEPENDENCIES
   peatio_client
+  redis
   slack-notifier
 
 BUNDLED WITH
