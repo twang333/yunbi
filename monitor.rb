@@ -138,7 +138,7 @@ class MyClient
     if sell_price / price >= (1 + @stop_profit)
       @slack_notifier.ping "profit: #{market}, sell: #{sell_price}"
       @redis.set(market, sell_price)
-      sell(market, coin_balance * 1/2, sell_price)
+      sell(market, coin_balance * 1/3, sell_price)
       return
     end
 
