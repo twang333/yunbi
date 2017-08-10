@@ -124,7 +124,7 @@ class MyClient
     accounts_hash
   end
 
-  def strategy(market, strategy = 'moving_average')
+  def strategy(market, coin_balance, strategy = 'moving_average')
     closing_price = fetch_closing_prices(market, 60, 60)
     ma_7  = self.send(:"#{strategy}", closing_price, 7)
     ma_30 = self.send(:"#{strategy}", closing_price, 30)
@@ -133,36 +133,32 @@ class MyClient
     buy_price, sell_price = fetch_ticker_price(market)
 
     min = [ma_30[-1], ma_7[-1]].min
+    max = [ma_30[-1], ma_7[-1]].max
     ratio = ma_7[-1]/ma_30[-1]
-    if ratio > 0.98 && ma_7[-1] > ma_7[-2] && sell_price <= (min + (ma_30[-1] - ma_7[-1]).abs* 0.1 )
+    if ratio > 0.98 && ma_7[-1] > ma_7[-2] && sell_price <= (min + (ma_30[-1] - ma_7[-1]).abs* 0.1 ) && sell_price <= max
       @slack_notifier.ping("good time to buy #{market}")
       buy(market, 1000, sell_price)
       return
     end
-  end
 
-  def monitor(market, coin_balance, price)
-    buy_price, sell_price = fetch_ticker_price(market)
-
-    if sell_price / price >= (1 + @stop_profit)
-      @slack_notifier.ping "profit: #{market}, sell: #{sell_price}"
-      sell(market, coin_balance, sell_price)
-      return
-    end
-
-    if buy_price / price <= (1 - @stop_loss)
-      @slack_notifier.ping "loss: #{market}, sell: #{buy_price}"
+    if buy_price > max && ma_7[-1] < ma_7[-2]
+      return if coin_balance * buy_price < 10
+      @slack_notifier.ping("good time to sell #{market}")
       sell(market, coin_balance, buy_price)
       return
     end
-
   end
 
   def start
+    manual_markets = @markets.map {|m| m['market']}
+    accounts = get_accounts
     all_markets = get_markets
     all_markets.each do |market|
       m = market['id']
-      strategy(m, @strategy)
+      next if manual_markets.include?(m)
+      coin = m[0...-3]
+      coin_balance = accounts[coin]['balance']
+      strategy(m, coin_balance, @strategy)
     end
   end
 
