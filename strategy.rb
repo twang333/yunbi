@@ -137,14 +137,15 @@ class MyClient
 
     min = [ma_30[-1], ma_7[-1]].min
     max = [ma_30[-1], ma_7[-1]].max
+    diff = (ma_30[-1] - ma_7[-1]).abs
     ratio = ma_7[-1]/ma_30[-1]
-    if ratio > 0.98 && ma_7[-1] > ma_7[-2] && sell_price <= (min + (ma_30[-1] - ma_7[-1]).abs* 0.2 ) 
+    if ratio > 0.98 && ma_7[-1] > ma_7[-2] && sell_price <= (min + diff * 0.2 ) 
       @slack_notifier.ping("good time to buy #{market}")
       buy(market, 1000, sell_price)
       return
     end
 
-    if buy_price > max && ma_7[-1] < ma_7[-2]
+    if buy_price > (min + diff * 0.5) && ma_7[-1] < ma_7[-2]
       return if coin_balance * buy_price < 10
       @slack_notifier.ping("good time to sell #{market}")
       sell(market, coin_balance, buy_price)
