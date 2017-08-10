@@ -33,6 +33,9 @@ class MyClient
     access_key      = @conf[options[:env]]['access']
     access_token    = @conf[options[:env]]['token']
     @markets        = @conf[options[:env]]['markets']
+    if @markets.nil?
+      @markets = []
+    end
     @stop_loss      = @conf[options[:env]]['loss']
     @stop_profit    = @conf[options[:env]]['profit']
     @strategy       = @conf[options[:env]]['strategy']
@@ -135,7 +138,7 @@ class MyClient
     min = [ma_30[-1], ma_7[-1]].min
     max = [ma_30[-1], ma_7[-1]].max
     ratio = ma_7[-1]/ma_30[-1]
-    if ratio > 0.98 && ma_7[-1] > ma_7[-2] && sell_price <= (min + (ma_30[-1] - ma_7[-1]).abs* 0.1 ) && sell_price <= max
+    if ratio > 0.98 && ma_7[-1] > ma_7[-2] && sell_price <= (min + (ma_30[-1] - ma_7[-1]).abs* 0.2 ) 
       @slack_notifier.ping("good time to buy #{market}")
       buy(market, 1000, sell_price)
       return
