@@ -141,7 +141,7 @@ class MyClient
     ratio = ma_7[-1]/ma_30[-1]
     if ratio > 0.98 && ma_7[-1] > ma_7[-2] && sell_price <= (min + diff * 0.2 ) 
       @slack_notifier.ping("good time to buy #{market}")
-      buy(market, 1000, sell_price)
+      # buy(market, 1000, sell_price)
       return
     end
 
